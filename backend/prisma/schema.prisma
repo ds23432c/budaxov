@@ -1,0 +1,361 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              Int       @id @default(autoincrement())
+  username        String    @unique @db.VarChar(50)
+  email           String    @unique @db.VarChar(255)
+  passwordHash    String    @map("password_hash") @db.VarChar(255)
+  role            Role      @default(USER)
+  avatarUrl       String?   @map("avatar_url") @db.VarChar(500)
+  isActive        Boolean   @default(true) @map("is_active")
+  isBanned        Boolean   @default(false) @map("is_banned")
+  banReason       String?   @map("ban_reason") @db.VarChar(500)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  lastSeen        DateTime? @map("last_seen")
+
+  profile         UserProfile?
+  posts           Post[]
+  comments        Comment[]
+  userAchievements UserAchievement[]
+  mediaItems      MediaGallery[]
+  reports         Report[]   @relation("ReporterRelation")
+  receivedReports Report[]   @relation("TargetUserRelation")
+  postLikes       PostLike[]
+  notifications   Notification[]
+  adminLogs       AdminLog[]
+
+  @@map("users")
+}
+
+enum Role {
+  USER
+  MODERATOR
+  ADMIN
+  SUPERADMIN
+}
+
+model UserProfile {
+  id          Int     @id @default(autoincrement())
+  userId      Int     @unique @map("user_id")
+  bio         String? @db.Text
+  discord     String? @db.VarChar(100)
+  playtimeHours Int   @default(0) @map("playtime_hours")
+  country     String? @db.VarChar(100)
+  website     String? @db.VarChar(255)
+  totalScore  Int     @default(0) @map("total_score")
+  level       Int     @default(1)
+
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+model Item {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(200)
+  slug        String   @unique @db.VarChar(200)
+  type        ItemType
+  rarity      Rarity
+  description String?  @db.Text
+  spriteUrl   String?  @map("sprite_url") @db.VarChar(500)
+  imageUrl    String?  @map("image_url") @db.VarChar(500)
+  damage      Int?
+  defense     Int?
+  craftable   Boolean  @default(false)
+  craftRecipe String?  @map("craft_recipe") @db.Text
+  biome       String?  @db.VarChar(100)
+  boss        String?  @db.VarChar(100)
+  isPublished Boolean  @default(true) @map("is_published")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("items")
+}
+
+enum ItemType {
+  WEAPON
+  ARMOR
+  TOOL
+  MATERIAL
+  CONSUMABLE
+  ACCESSORY
+  BLOCK
+  FURNITURE
+  BOSS_LOOT
+}
+
+enum Rarity {
+  GREY
+  WHITE
+  BLUE
+  GREEN
+  ORANGE
+  RED
+  PURPLE
+  YELLOW
+  CYAN
+  RAINBOW
+}
+
+model WikiPage {
+  id          Int      @id @default(autoincrement())
+  title       String   @db.VarChar(300)
+  slug        String   @unique @db.VarChar(300)
+  content     String   @db.LongText
+  excerpt     String?  @db.VarChar(500)
+  coverUrl    String?  @map("cover_url") @db.VarChar(500)
+  category    WikiCategory
+  authorId    Int      @map("author_id")
+  views       Int      @default(0)
+  isPublished Boolean  @default(true) @map("is_published")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  author      User     @relation(fields: [authorId], references: [id])
+
+  @@map("wiki_pages")
+}
+
+enum WikiCategory {
+  BIOME
+  BOSS
+  ITEM
+  MECHANIC
+  GUIDE
+  LORE
+}
+
+model Post {
+  id          Int       @id @default(autoincrement())
+  title       String    @db.VarChar(300)
+  body        String    @db.LongText
+  excerpt     String?   @db.VarChar(500)
+  coverUrl    String?   @map("cover_url") @db.VarChar(500)
+  category    PostCategory
+  authorId    Int       @map("author_id")
+  views       Int       @default(0)
+  isPinned    Boolean   @default(false) @map("is_pinned")
+  isPublished Boolean   @default(true) @map("is_published")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  author      User      @relation(fields: [authorId], references: [id])
+  comments    Comment[]
+  likes       PostLike[]
+
+  @@map("posts")
+}
+
+enum PostCategory {
+  NEWS
+  GUIDE
+  DISCUSSION
+  FANART
+  BUILD
+  HELP
+}
+
+model Comment {
+  id          Int      @id @default(autoincrement())
+  postId      Int      @map("post_id")
+  authorId    Int      @map("author_id")
+  body        String   @db.Text
+  parentId    Int?     @map("parent_id")
+  isDeleted   Boolean  @default(false) @map("is_deleted")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  post        Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author      User     @relation(fields: [authorId], references: [id])
+  parent      Comment? @relation("CommentReplies", fields: [parentId], references: [id])
+  replies     Comment[] @relation("CommentReplies")
+
+  @@map("comments")
+}
+
+model PostLike {
+  id        Int      @id @default(autoincrement())
+  postId    Int      @map("post_id")
+  userId    Int      @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@map("post_likes")
+}
+
+model Achievement {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(200)
+  description String   @db.VarChar(500)
+  iconUrl     String?  @map("icon_url") @db.VarChar(500)
+  xpReward    Int      @default(100) @map("xp_reward")
+  rarity      AchievementRarity @default(COMMON)
+  isSecret    Boolean  @default(false) @map("is_secret")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  userAchievements UserAchievement[]
+
+  @@map("achievements")
+}
+
+enum AchievementRarity {
+  COMMON
+  RARE
+  EPIC
+  LEGENDARY
+}
+
+model UserAchievement {
+  id            Int      @id @default(autoincrement())
+  userId        Int      @map("user_id")
+  achievementId Int      @map("achievement_id")
+  earnedAt      DateTime @default(now()) @map("earned_at")
+
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement   Achievement @relation(fields: [achievementId], references: [id])
+
+  @@unique([userId, achievementId])
+  @@map("user_achievements")
+}
+
+model Leaderboard {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  score     Int      @default(0)
+  season    Int      @default(1)
+  kills     Int      @default(0)
+  deaths    Int      @default(0)
+  playtime  Int      @default(0)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, season])
+  @@map("leaderboard")
+}
+
+model MediaGallery {
+  id          Int       @id @default(autoincrement())
+  userId      Int       @map("user_id")
+  url         String    @db.VarChar(500)
+  thumbUrl    String?   @map("thumb_url") @db.VarChar(500)
+  title       String?   @db.VarChar(200)
+  description String?   @db.VarChar(500)
+  type        MediaType @default(SCREENSHOT)
+  votes       Int       @default(0)
+  isApproved  Boolean   @default(false) @map("is_approved")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@map("media_gallery")
+}
+
+enum MediaType {
+  SCREENSHOT
+  FANART
+  BUILD
+  VIDEO
+}
+
+model News {
+  id          Int      @id @default(autoincrement())
+  title       String   @db.VarChar(300)
+  content     String   @db.LongText
+  excerpt     String?  @db.VarChar(500)
+  coverUrl    String?  @map("cover_url") @db.VarChar(500)
+  authorId    Int      @map("author_id")
+  isPublished Boolean  @default(true) @map("is_published")
+  isPinned    Boolean  @default(false) @map("is_pinned")
+  views       Int      @default(0)
+  publishedAt DateTime? @map("published_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("news")
+}
+
+model Report {
+  id          Int          @id @default(autoincrement())
+  targetType  ReportTarget @map("target_type")
+  targetId    Int          @map("target_id")
+  reporterId  Int          @map("reporter_id")
+  targetUserId Int?        @map("target_user_id")
+  reason      String       @db.VarChar(500)
+  status      ReportStatus @default(PENDING)
+  resolvedBy  Int?         @map("resolved_by")
+  resolution  String?      @db.VarChar(500)
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  reporter    User         @relation("ReporterRelation", fields: [reporterId], references: [id])
+  targetUser  User?        @relation("TargetUserRelation", fields: [targetUserId], references: [id])
+
+  @@map("reports")
+}
+
+enum ReportTarget {
+  POST
+  COMMENT
+  USER
+  MEDIA
+}
+
+enum ReportStatus {
+  PENDING
+  RESOLVED
+  DISMISSED
+}
+
+model Notification {
+  id        Int              @id @default(autoincrement())
+  userId    Int              @map("user_id")
+  type      NotificationType
+  title     String           @db.VarChar(200)
+  body      String           @db.VarChar(500)
+  link      String?          @db.VarChar(300)
+  isRead    Boolean          @default(false) @map("is_read")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+enum NotificationType {
+  ACHIEVEMENT
+  COMMENT
+  LIKE
+  SYSTEM
+  MODERATION
+}
+
+model AdminLog {
+  id        Int      @id @default(autoincrement())
+  adminId   Int      @map("admin_id")
+  action    String   @db.VarChar(200)
+  details   String?  @db.Text
+  ip        String?  @db.VarChar(50)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  admin     User     @relation(fields: [adminId], references: [id])
+
+  @@map("admin_logs")
+}
+
+model SiteSettings {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique @db.VarChar(100)
+  value     String   @db.Text
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("site_settings")
+}
