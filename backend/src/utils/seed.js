@@ -52,9 +52,38 @@ async function clearSeedTables(prisma) {
 }
 
 async function upsertUser(prisma, template, passwordHash) {
-  return prisma.user.upsert({
-    where: { email: template.email },
-    create: {
+  const existingUser = await prisma.user.findFirst({
+    where: {
+      OR: [{ email: template.email }, { username: template.username }],
+    },
+    select: { id: true },
+  });
+
+  if (existingUser) {
+    return prisma.user.update({
+      where: { id: existingUser.id },
+      data: {
+        username: template.username,
+        email: template.email,
+        passwordHash,
+        role: template.role,
+        avatarUrl: template.avatarUrl,
+        isActive: true,
+        isBanned: false,
+        banReason: null,
+        profile: {
+          upsert: {
+            create: template.profile,
+            update: template.profile,
+          },
+        },
+      },
+      include: { profile: true },
+    });
+  }
+
+  return prisma.user.create({
+    data: {
       username: template.username,
       email: template.email,
       passwordHash,
@@ -64,20 +93,6 @@ async function upsertUser(prisma, template, passwordHash) {
       isBanned: false,
       profile: {
         create: template.profile,
-      },
-    },
-    update: {
-      username: template.username,
-      role: template.role,
-      avatarUrl: template.avatarUrl,
-      isActive: true,
-      isBanned: false,
-      banReason: null,
-      profile: {
-        upsert: {
-          create: template.profile,
-          update: template.profile,
-        },
       },
     },
     include: { profile: true },

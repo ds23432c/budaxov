@@ -9,7 +9,7 @@ const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 function run(command, args, extraEnv = {}) {
   const child = spawn(command, args, {
     stdio: 'inherit',
-    shell: false,
+    shell: process.platform === 'win32' && command === npmCommand,
     env: {
       ...process.env,
       ...extraEnv,
@@ -30,7 +30,7 @@ function runOnce(command, args, extraEnv = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       stdio: 'inherit',
-      shell: false,
+      shell: process.platform === 'win32' && command === npmCommand,
       env: {
         ...process.env,
         ...extraEnv,
