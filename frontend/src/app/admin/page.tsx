@@ -203,6 +203,8 @@ export default function AdminPage() {
 
   const currentSchema = CONTENT_FORM_SCHEMA[contentSection];
 
+  const getMediaPreviewUrl = (item: any) => item?.thumbUrl || item?.url || '';
+
   const getUserLabel = (item: any) => {
     const source = item?.author || item?.user;
     if (source?.username || source?.email) {
@@ -949,12 +951,23 @@ export default function AdminPage() {
                           : 'border-white/10 bg-white/5 hover:bg-white/10'
                       }`}
                     >
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0">
+                      <div className="flex items-center gap-3">
+                        {contentSection === 'gallery' && (
+                          <img
+                            src={getMediaPreviewUrl(item)}
+                            alt={item.title || ''}
+                            className="w-14 h-14 rounded-lg object-cover border border-white/10 shrink-0"
+                            onError={(e) => (e.currentTarget.style.display = 'none')}
+                          />
+                        )}
+                        <div className="min-w-0 flex-1">
                           <p className="text-sm text-white truncate">{contentSummary(item)}</p>
                           <p className="text-xs text-slate-500">
                             #{item.id} {contentStatus(item) ? `· ${contentStatus(item)}` : ''}
                           </p>
+                          {contentSection === 'gallery' && (
+                            <p className="text-xs text-slate-400 truncate mt-1">{getMediaPreviewUrl(item)}</p>
+                          )}
                         </div>
                         <span className="text-[10px] uppercase tracking-wide text-slate-400">{contentSection}</span>
                       </div>
