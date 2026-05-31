@@ -55,9 +55,6 @@ app.use('/api/gallery', require('./routes/gallery'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/notifications', require('./routes/notifications'));
 
-app.get('/', (_req, res) => {
-  res.status(200).send('Budaxov API is running');
-});
 
 // Health check
 app.get('/health', (_req, res) => res.json({ status: 'ok', time: new Date() }));
