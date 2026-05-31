@@ -88,6 +88,10 @@ export const adminAPI = {
   getLogs: () => api.get('/admin/logs'),
   getSettings: () => api.get('/admin/settings'),
   updateSettings: (data: any) => api.patch('/admin/settings', data),
+  getContent: (section: string, params?: any) => api.get(`/admin/content/${section}`, { params }),
+  createContent: (section: string, data: any) => api.post(`/admin/content/${section}`, data),
+  updateContent: (section: string, id: number, data: any) => api.patch(`/admin/content/${section}/${id}`, data),
+  deleteContent: (section: string, id: number) => api.delete(`/admin/content/${section}/${id}`),
 };
 
 export const notificationsAPI = {
