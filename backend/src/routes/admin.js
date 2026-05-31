@@ -20,23 +20,60 @@ router.get('/stats', ...isAdmin, async (req, res) => {
 
 // Users management
 router.get('/users', ...isAdmin, async (req, res) => {
-  const { page = 1, limit = 20, search, role } = req.query;
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
+  const { search, role } = req.query;
   const where = {};
-  if (search) where.OR = [{ username: { contains: search } }, { email: { contains: search } }];
+  if (search) where.OR = [{ username: { contains: String(search) } }, { email: { contains: String(search) } }];
   if (role) where.role = role;
   const [users, total] = await Promise.all([
-    req.prisma.user.findMany({ where, skip: (page-1)*limit, take: +limit, orderBy: { createdAt: 'desc' }, include: { profile: { select: { playtimeHours: true, level: true } } }, omit: { passwordHash: true } }),
+    req.prisma.user.findMany({
+      where,
+      skip: (page - 1) * limit,
+      take: limit,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        role: true,
+        avatarUrl: true,
+        isActive: true,
+        isBanned: true,
+        banReason: true,
+        createdAt: true,
+        updatedAt: true,
+        lastSeen: true,
+        profile: { select: { playtimeHours: true, level: true } }
+      }
+    }),
     req.prisma.user.count({ where })
   ]);
-  res.json({ users, total, page: +page, pages: Math.ceil(total/limit) });
+  res.json({ users, total, page, pages: Math.ceil(total / limit) });
 });
 
 router.patch('/users/:id', ...isSuperAdmin, async (req, res) => {
   const { role, isBanned, banReason, isActive } = req.body;
-  const user = await req.prisma.user.update({
+  await req.prisma.user.update({
     where: { id: +req.params.id },
-    data: { role, isBanned, banReason, isActive },
-    omit: { passwordHash: true }
+    data: { role, isBanned, banReason, isActive }
+  });
+  const user = await req.prisma.user.findUnique({
+    where: { id: +req.params.id },
+    select: {
+      id: true,
+      username: true,
+      email: true,
+      role: true,
+      avatarUrl: true,
+      isActive: true,
+      isBanned: true,
+      banReason: true,
+      createdAt: true,
+      updatedAt: true,
+      lastSeen: true,
+      profile: { select: { playtimeHours: true, level: true } }
+    }
   });
   await req.prisma.adminLog.create({ data: { adminId: req.user.id, action: 'UPDATE_USER', details: `Updated user ${req.params.id}: ${JSON.stringify(req.body)}` } });
   res.json(user);

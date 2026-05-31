@@ -4,13 +4,22 @@ const { authMiddleware } = require('../middleware/auth');
 router.get('/:id', async (req, res) => {
   const user = await req.prisma.user.findUnique({
     where: { id: +req.params.id },
-    include: {
+    select: {
+      id: true,
+      username: true,
+      role: true,
+      avatarUrl: true,
+      isActive: true,
+      isBanned: true,
+      banReason: true,
+      createdAt: true,
+      updatedAt: true,
+      lastSeen: true,
       profile: true,
-      userAchievements: { include: { achievement: true }, orderBy: { earnedAt: 'desc' } },
+      userAchievements: { select: { id: true, earnedAt: true, achievement: true }, orderBy: { earnedAt: 'desc' } },
       posts: { where: { isPublished: true }, orderBy: { createdAt: 'desc' }, take: 5, select: { id: true, title: true, category: true, createdAt: true } },
       _count: { select: { posts: true, comments: true } }
-    },
-    omit: { passwordHash: true, email: true }
+    }
   });
   if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
   res.json(user);

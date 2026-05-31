@@ -2,7 +2,9 @@ const router = require('express').Router();
 const { authMiddleware, optionalAuth, requireRole } = require('../middleware/auth');
 
 router.get('/', optionalAuth, async (req, res) => {
-  const { category, page = 1, limit = 10, sort = 'newest' } = req.query;
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 10));
+  const { category, sort = 'newest' } = req.query;
   const where = { isPublished: true };
   if (category) where.category = category;
 
@@ -10,17 +12,30 @@ router.get('/', optionalAuth, async (req, res) => {
 
   const [posts, total] = await Promise.all([
     req.prisma.post.findMany({
-      where, skip: (page-1)*limit, take: +limit, orderBy: [{ isPinned: 'desc' }, orderBy],
-      include: {
+      where,
+      skip: (page - 1) * limit,
+      take: limit,
+      orderBy: [{ isPinned: 'desc' }, orderBy],
+      select: {
+        id: true,
+        title: true,
+        excerpt: true,
+        coverUrl: true,
+        category: true,
+        authorId: true,
+        views: true,
+        isPinned: true,
+        isPublished: true,
+        createdAt: true,
+        updatedAt: true,
         author: { select: { id: true, username: true, avatarUrl: true, role: true } },
         _count: { select: { comments: true, likes: true } },
-        likes: req.user ? { where: { userId: req.user.id }, select: { id: true } } : false,
-      },
-      omit: { body: true }
+        likes: req.user ? { where: { userId: req.user.id }, select: { id: true } } : undefined,
+      }
     }),
     req.prisma.post.count({ where })
   ]);
-  res.json({ posts, total, page: +page, pages: Math.ceil(total / limit) });
+  res.json({ posts, total, page, pages: Math.ceil(total / limit) });
 });
 
 router.get('/:id', optionalAuth, async (req, res) => {
@@ -29,7 +44,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
     include: {
       author: { select: { id: true, username: true, avatarUrl: true, role: true } },
       _count: { select: { comments: true, likes: true } },
-      likes: req.user ? { where: { userId: req.user.id } } : false,
+      likes: req.user ? { where: { userId: req.user.id } } : undefined,
       comments: {
         where: { parentId: null, isDeleted: false },
         include: {

@@ -85,8 +85,21 @@ router.post('/login', async (req, res) => {
 router.get('/me', authMiddleware, async (req, res) => {
   const user = await req.prisma.user.findUnique({
     where: { id: req.user.id },
-    include: { profile: true, userAchievements: { include: { achievement: true }, orderBy: { earnedAt: 'desc' }, take: 5 } },
-    omit: { passwordHash: true }
+    select: {
+      id: true,
+      username: true,
+      email: true,
+      role: true,
+      avatarUrl: true,
+      isActive: true,
+      isBanned: true,
+      banReason: true,
+      createdAt: true,
+      updatedAt: true,
+      lastSeen: true,
+      profile: true,
+      userAchievements: { select: { id: true, earnedAt: true, achievement: true }, orderBy: { earnedAt: 'desc' }, take: 5 }
+    }
   });
   if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
   res.json(user);
