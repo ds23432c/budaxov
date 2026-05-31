@@ -26,6 +26,7 @@ model User {
   comments        Comment[]
   userAchievements UserAchievement[]
   mediaItems      MediaGallery[]
+  wikiPages       WikiPage[]
   reports         Report[]   @relation("ReporterRelation")
   receivedReports Report[]   @relation("TargetUserRelation")
   postLikes       PostLike[]
