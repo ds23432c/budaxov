@@ -1,5 +1,6 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -20,9 +21,17 @@ export default function NewPostPage() {
   const user = useAuthStore(s => s.user);
   const router = useRouter();
 
-  if (!user) { router.push('/auth/login'); return null; }
+  useEffect(() => {
+    if (!user) {
+      router.replace('/auth/login');
+    }
+  }, [router, user]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  if (!user) {
+    return null;
+  }
+
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!form.title.trim() || !form.body.trim()) { toast.error('Заполните заголовок и текст'); return; }
     setLoading(true);

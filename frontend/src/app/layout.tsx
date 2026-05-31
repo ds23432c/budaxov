@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import './globals.css';
+import '../styles/globals.css';
 import { Toaster } from 'react-hot-toast';
 import Navbar from '@/components/Navbar';
 import ParticleCanvas from '@/components/ParticleCanvas';
