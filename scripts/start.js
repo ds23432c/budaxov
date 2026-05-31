@@ -52,14 +52,13 @@ function runOnce(command, args, extraEnv = {}) {
 async function main() {
   try {
     await runOnce(process.execPath, [prismaScript, 'generate', '--schema=backend/prisma/schema.prisma']);
-    await runOnce(process.execPath, [prismaScript, 'db', 'push', '--schema=backend/prisma/schema.prisma']);
     await runOnce(npmCommand, ['--prefix', 'frontend', 'run', 'build']);
+
+    const frontend = run(npmCommand, ['--prefix', 'frontend', 'run', 'start', '--', '-p', publicPort, '-H', '0.0.0.0']);
 
     const backend = run(npmCommand, ['--prefix', 'backend', 'run', 'start'], {
       PORT: backendPort,
     });
-
-    const frontend = run(npmCommand, ['--prefix', 'frontend', 'run', 'start', '--', '-p', publicPort, '-H', '0.0.0.0']);
 
     const shutdown = (code = 0) => {
       backend.kill('SIGTERM');
@@ -67,12 +66,14 @@ async function main() {
       process.exit(code);
     };
 
-    backend.on('exit', (code) => {
+    frontend.on('exit', (code) => {
       shutdown(code ?? 1);
     });
 
-    frontend.on('exit', (code) => {
-      shutdown(code ?? 1);
+    backend.on('exit', (code) => {
+      if (code && code !== 0) {
+        console.error(`backend exited with code ${code} - keeping frontend alive for healthcheck`);
+      }
     });
 
     process.on('SIGTERM', () => shutdown(0));
