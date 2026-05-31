@@ -1,14 +1,27 @@
 const router = require('express').Router();
 
 router.get('/', async (req, res) => {
-  const { season = 1, limit = 50 } = req.query;
+  const season = parseInt(req.query.season, 10) || 1;
+  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 50));
+
   const rows = await req.prisma.leaderboard.findMany({
-    where: { season: +season },
+    where: { season },
     orderBy: { score: 'desc' },
-    take: +limit,
-    include: { user: { select: { id: true, username: true, avatarUrl: true, role: true } } }
+    take: limit,
   });
-  res.json(rows.map((r, i) => ({ ...r, rank: i + 1 })));
+
+  const users = await req.prisma.user.findMany({
+    where: { id: { in: rows.map((row) => row.userId) } },
+    select: { id: true, username: true, avatarUrl: true, role: true },
+  });
+
+  const userById = new Map(users.map((user) => [user.id, user]));
+
+  res.json(rows.map((row, index) => ({
+    ...row,
+    rank: index + 1,
+    user: userById.get(row.userId) || null,
+  })));
 });
 
 module.exports = router;

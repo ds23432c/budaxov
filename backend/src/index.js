@@ -24,6 +24,7 @@ const io = new Server(httpServer, {
 
 // Middleware
 app.use(helmet({ contentSecurityPolicy: false }));
+app.set('trust proxy', 1);
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true,
@@ -31,8 +32,16 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Rate limiting
-const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200 });
+/* Rate limiting */
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: {
+    xForwardedForHeader: false,
+  },
+});
 app.use('/api/', limiter);
 
 // Attach prisma & io to req
@@ -54,7 +63,6 @@ app.use('/api/achievements', require('./routes/achievements'));
 app.use('/api/gallery', require('./routes/gallery'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/notifications', require('./routes/notifications'));
-
 
 // Health check
 app.get('/health', (_req, res) => res.json({ status: 'ok', time: new Date() }));

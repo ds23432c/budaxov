@@ -1,12 +1,15 @@
 const { spawn } = require('child_process');
+const path = require('path');
 
 const publicPort = process.env.PORT || '8080';
 const backendPort = process.env.BACKEND_PORT || '3001';
+const prismaScript = path.join('backend', 'node_modules', 'prisma', 'build', 'index.js');
+const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
 function run(command, args, extraEnv = {}) {
   const child = spawn(command, args, {
     stdio: 'inherit',
-    shell: process.platform === 'win32',
+    shell: false,
     env: {
       ...process.env,
       ...extraEnv,
@@ -27,7 +30,7 @@ function runOnce(command, args, extraEnv = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       stdio: 'inherit',
-      shell: process.platform === 'win32',
+      shell: false,
       env: {
         ...process.env,
         ...extraEnv,
@@ -48,15 +51,15 @@ function runOnce(command, args, extraEnv = {}) {
 
 async function main() {
   try {
-    await runOnce('npm', ['--prefix', 'backend', 'run', 'db:generate']);
-    await runOnce('npm', ['--prefix', 'backend', 'run', 'db:push']);
-    await runOnce('npm', ['--prefix', 'frontend', 'run', 'build']);
+    await runOnce(process.execPath, [prismaScript, 'generate', '--schema=backend/prisma/schema.prisma']);
+    await runOnce(process.execPath, [prismaScript, 'db', 'push', '--schema=backend/prisma/schema.prisma']);
+    await runOnce(npmCommand, ['--prefix', 'frontend', 'run', 'build']);
 
-    const backend = run('npm', ['--prefix', 'backend', 'run', 'start'], {
+    const backend = run(npmCommand, ['--prefix', 'backend', 'run', 'start'], {
       PORT: backendPort,
     });
 
-    const frontend = run('npm', ['--prefix', 'frontend', 'run', 'start', '--', '-p', publicPort, '-H', '0.0.0.0']);
+    const frontend = run(npmCommand, ['--prefix', 'frontend', 'run', 'start', '--', '-p', publicPort, '-H', '0.0.0.0']);
 
     const shutdown = (code = 0) => {
       backend.kill('SIGTERM');
