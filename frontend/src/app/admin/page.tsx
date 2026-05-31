@@ -35,7 +35,7 @@ const CONTENT_FORM_SCHEMA: Record<ContentSection, ContentField[]> = {
     { key: 'content', label: 'Текст', type: 'textarea' },
     { key: 'excerpt', label: 'Краткий текст', type: 'text' },
     { key: 'coverUrl', label: 'Обложка', type: 'text' },
-    { key: 'authorId', label: 'Автор ID', type: 'number' },
+    { key: 'authorId', label: 'Автор (никнейм, email или ID)', type: 'text', placeholder: 'Например: Alex, alex@mail.com или 12' },
     { key: 'isPublished', label: 'Опубликовано', type: 'checkbox' },
     { key: 'isPinned', label: 'Закреплено', type: 'checkbox' },
     { key: 'views', label: 'Просмотры', type: 'number' },
@@ -64,7 +64,7 @@ const CONTENT_FORM_SCHEMA: Record<ContentSection, ContentField[]> = {
     { key: 'excerpt', label: 'Краткий текст', type: 'text' },
     { key: 'coverUrl', label: 'Обложка', type: 'text' },
     { key: 'category', label: 'Категория', type: 'select', options: ['BIOME', 'BOSS', 'ITEM', 'MECHANIC', 'GUIDE', 'LORE'] },
-    { key: 'authorId', label: 'Автор ID', type: 'number' },
+    { key: 'authorId', label: 'Автор (никнейм, email или ID)', type: 'text', placeholder: 'Например: Alex, alex@mail.com или 12' },
     { key: 'views', label: 'Просмотры', type: 'number' },
     { key: 'isPublished', label: 'Опубликовано', type: 'checkbox' },
   ],
@@ -74,7 +74,7 @@ const CONTENT_FORM_SCHEMA: Record<ContentSection, ContentField[]> = {
     { key: 'excerpt', label: 'Краткий текст', type: 'text' },
     { key: 'coverUrl', label: 'Обложка', type: 'text' },
     { key: 'category', label: 'Категория', type: 'select', options: ['NEWS', 'GUIDE', 'DISCUSSION', 'FANART', 'BUILD', 'HELP'] },
-    { key: 'authorId', label: 'Автор ID', type: 'number' },
+    { key: 'authorId', label: 'Автор (никнейм, email или ID)', type: 'text', placeholder: 'Например: Alex, alex@mail.com или 12' },
     { key: 'views', label: 'Просмотры', type: 'number' },
     { key: 'isPinned', label: 'Закреплено', type: 'checkbox' },
     { key: 'isPublished', label: 'Опубликовано', type: 'checkbox' },
@@ -88,7 +88,7 @@ const CONTENT_FORM_SCHEMA: Record<ContentSection, ContentField[]> = {
     { key: 'isSecret', label: 'Секретная', type: 'checkbox' },
   ],
   gallery: [
-    { key: 'userId', label: 'Пользователь ID', type: 'number' },
+    { key: 'userId', label: 'Пользователь (никнейм, email или ID)', type: 'text', placeholder: 'Например: Alex, alex@mail.com или 12' },
     { key: 'url', label: 'URL', type: 'text' },
     { key: 'thumbUrl', label: 'Thumb URL', type: 'text' },
     { key: 'title', label: 'Заголовок', type: 'text' },
@@ -186,6 +186,9 @@ export default function AdminPage() {
   const [contentSearch, setContentSearch] = useState('');
   const [selectedContentId, setSelectedContentId] = useState<number | null>(null);
   const [contentForm, setContentForm] = useState<ContentRecord>(EMPTY_BY_SECTION.news);
+  const [authorDisplay, setAuthorDisplay] = useState('');
+  const [authorOptions, setAuthorOptions] = useState<any[]>([]);
+  const [authorLookupLoading, setAuthorLookupLoading] = useState(false);
 
   const user = useAuthStore((s) => s.user);
   const router = useRouter();
@@ -199,6 +202,46 @@ export default function AdminPage() {
   );
 
   const currentSchema = CONTENT_FORM_SCHEMA[contentSection];
+
+  const getUserLabel = (item: any) => {
+    const source = item?.author || item?.user;
+    if (source?.username || source?.email) {
+      return `${source.username || source.email}${source.email ? ` · ${source.email}` : ''}`;
+    }
+    const fallback = item?.authorId ?? item?.userId ?? '';
+    return fallback ? String(fallback) : '';
+  };
+
+  const searchAuthors = async (query: string) => {
+    const value = query.trim();
+    if (value.length < 2) {
+      setAuthorOptions([]);
+      return;
+    }
+
+    setAuthorLookupLoading(true);
+    try {
+      const { data } = await adminAPI.getUsers({ search: value, limit: 10 });
+      setAuthorOptions(data.users || []);
+    } catch {
+      setAuthorOptions([]);
+    } finally {
+      setAuthorLookupLoading(false);
+    }
+  };
+
+  const resolveUserReference = async (value: any, fallbackId?: number) => {
+    const raw = String(value ?? '').trim();
+    if (!raw) return fallbackId || null;
+    if (/^\d+$/.test(raw)) return Number(raw);
+
+    const { data } = await adminAPI.getUsers({ search: raw, limit: 10 });
+    const users = data.users || [];
+    const exact = users.find((u: any) => u.username === raw || u.email === raw);
+    const found = exact || users[0];
+    if (!found) throw new Error('Пользователь не найден');
+    return found.id;
+  };
 
   useEffect(() => {
     if (!user) {
@@ -270,6 +313,8 @@ export default function AdminPage() {
       const { data } = await adminAPI.getContent(section, { search, limit: 100 });
       setContentItems(data.items || []);
       setSelectedContentId(null);
+      setAuthorDisplay('');
+      setAuthorOptions([]);
       setContentForm(EMPTY_BY_SECTION[section]);
     } catch {
       toast.error('Не удалось загрузить контент');
@@ -281,6 +326,8 @@ export default function AdminPage() {
   const selectContentItem = (item: ContentRecord) => {
     setSelectedContentId(item.id);
     setContentForm(mapRecordToForm(contentSection, item));
+    setAuthorDisplay(getUserLabel(item));
+    setAuthorOptions([]);
   };
 
   const mapRecordToForm = (section: ContentSection, item: ContentRecord) => {
@@ -328,6 +375,8 @@ export default function AdminPage() {
 
   const resetContentForm = () => {
     setSelectedContentId(null);
+    setAuthorDisplay('');
+    setAuthorOptions([]);
     setContentForm(EMPTY_BY_SECTION[contentSection]);
   };
 
@@ -387,6 +436,15 @@ export default function AdminPage() {
   const saveContent = async () => {
     try {
       const payload = prepareContentPayload(contentSection, contentForm);
+
+      if (contentSection === 'news' || contentSection === 'wiki' || contentSection === 'posts') {
+        payload.authorId = await resolveUserReference(payload.authorId, user?.id);
+      }
+
+      if (contentSection === 'gallery') {
+        payload.userId = await resolveUserReference(payload.userId, user?.id);
+      }
+
       if (selectedContentId) {
         await adminAPI.updateContent(contentSection, selectedContentId, payload);
         toast.success('Запись обновлена');
@@ -459,6 +517,47 @@ export default function AdminPage() {
 
   const renderContentField = (field: ContentField) => {
     const value = contentForm[field.key];
+
+    if (field.key === 'authorId' || field.key === 'userId') {
+      return (
+        <div key={field.key} className="relative">
+          <label className="text-xs text-slate-400 mb-1 block">{field.label}</label>
+          <input
+            type="text"
+            value={authorDisplay}
+            onChange={(e) => {
+              const nextValue = e.target.value;
+              setAuthorDisplay(nextValue);
+              updateContentField(field.key, nextValue);
+              searchAuthors(nextValue);
+            }}
+            onFocus={() => searchAuthors(authorDisplay || String(value ?? ''))}
+            className="input-terra"
+            placeholder={field.placeholder || 'Никнейм, email или ID'}
+          />
+          {authorLookupLoading && <p className="text-[11px] text-slate-500 mt-1">Поиск пользователя...</p>}
+          {authorOptions.length > 0 && (
+            <div className="absolute z-20 mt-2 w-full max-h-56 overflow-auto rounded-xl border border-white/10 bg-[color:var(--bg-secondary)] shadow-xl">
+              {authorOptions.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => {
+                    setAuthorDisplay(`${option.username} · ${option.email}`);
+                    updateContentField(field.key, String(option.id));
+                    setAuthorOptions([]);
+                  }}
+                  className="w-full text-left px-4 py-3 text-sm text-slate-200 hover:bg-white/5 border-b border-white/5 last:border-b-0"
+                >
+                  <div className="font-medium">{option.username}</div>
+                  <div className="text-xs text-slate-400">{option.email}</div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
 
     if (field.type === 'checkbox') {
       return (

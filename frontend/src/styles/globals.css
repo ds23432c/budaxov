@@ -123,8 +123,19 @@ body {
 }
 
 /* Custom inputs */
-.input-terra {
-  @apply w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-yellow-400/50 transition-all;
+.input-terra,
+textarea,
+select {
+  @apply w-full bg-[color:var(--bg-secondary)] border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-yellow-400/50 transition-all;
+}
+
+select {
+  @apply appearance-none;
+}
+
+option {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
 }
 
 .btn-primary {
