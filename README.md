@@ -1,104 +1,131 @@
 # 🎮 Budaxov — Terraria Portal
 
-Полный стек русскоязычного Terraria-портала.  
-**Backend**: Node.js + Express + Prisma + MySQL  
-**Frontend**: Next.js 14 + Tailwind CSS + Framer Motion  
-**Deploy**: Railway (backend + MySQL) + Vercel (frontend)
+Полный стек русскоязычного Terraria-портала.
+
+**Стек**
+- Backend: Node.js + Express + Prisma + MySQL
+- Frontend: Next.js 14 + Tailwind CSS + Framer Motion
+- Deploy: **Railway only** — один сервис для сайта и API + отдельная MySQL база
+
+## Как это работает
+
+В Railway запускается **один root-сервис** из корня репозитория:
+- `scripts/start.js`:
+  - генерирует Prisma Client
+  - применяет схему к MySQL
+  - собирает frontend
+  - запускает backend на `3001`
+  - запускает Next.js на публичном `PORT` Railway, обычно `8080`
+
+Frontend и backend доступны через **один домен Railway**:
+- сайт открывается по публичному домену Railway
+- API доступен через `/api/*`
 
 ---
 
-## 🚀 Быстрый старт
+## Локальный запуск
 
-### 1. Клонируй репо
+### 1. Установи зависимости
+
 ```bash
-git clone https://github.com/ds23432c/budaxov.git
-cd budaxov
+npm install
 ```
 
-### 2. Настрой backend
+### 2. Backend env
 
 ```bash
 cd backend
 cp .env.example .env
 ```
 
-Заполни `.env` своими данными из Railway MySQL Variables:
+Пример `.env`:
 ```env
-DATABASE_URL="mysql://root:QfPjfROyvhtHLwwOvAIKWtWVlRLzFEuN@mysql.railway.internal:3306/railway"
-JWT_SECRET="придумай_длинный_секрет_тут"
-JWT_REFRESH_SECRET="другой_секрет"
+DATABASE_URL="mysql://root:password@localhost:3306/budaxov"
+JWT_SECRET="your-super-secret-jwt-key"
+JWT_REFRESH_SECRET="your-refresh-secret"
 PORT=3001
-FRONTEND_URL="https://your-vercel-app.vercel.app"
+FRONTEND_URL="http://localhost:3000"
+NODE_ENV="development"
 ```
 
-```bash
-npm install
-npm run db:generate  # генерирует Prisma Client
-npm run db:push      # создаёт таблицы в MySQL
-npm start            # запускает сервер (seed запустится автоматически!)
-```
-
-### 3. Настрой frontend
+### 3. Frontend env
 
 ```bash
 cd ../frontend
 cp .env.example .env.local
 ```
 
+Пример `.env.local`:
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:3001
-NEXT_PUBLIC_WS_URL=http://localhost:3001
+NEXT_PUBLIC_API_URL=/api
+NEXT_PUBLIC_WS_URL=
 ```
+
+### 4. Запуск
+
+Из корня репозитория:
 
 ```bash
-npm install
-npm run dev
+npm start
 ```
 
-Открой http://localhost:3000
+---
+
+## Railway deploy
+
+### 1. Создай проект
+- New Project → Deploy from GitHub
+- выбери репозиторий `budaxov`
+- **Root Directory: репозиторий целиком, не `backend` и не `frontend`**
+
+### 2. Добавь MySQL
+- создай Railway MySQL сервис
+- подключи его к проекту
+
+### 3. Переменные окружения для root app service
+
+```env
+DATABASE_URL=${{MySQL.MYSQL_URL}}
+JWT_SECRET=your-long-random-secret
+JWT_REFRESH_SECRET=your-other-long-secret
+FRONTEND_URL=https://your-railway-app.up.railway.app
+NODE_ENV=production
+```
+
+### 4. Проверка
+После деплоя:
+- `https://your-railway-app.up.railway.app/` — открывает сайт
+- `https://your-railway-app.up.railway.app/api/health` — healthcheck API
 
 ---
 
-## 📦 Деплой на Railway + Vercel
+## Команды
 
-### Railway (Backend)
+### Root
+```bash
+npm start
+```
 
-1. Зайди на [railway.app](https://railway.app)
-2. New Project → Deploy from GitHub → выбери репо `budaxov`
-3. Установи **Root Directory** = `backend`
-4. Добавь переменные в Settings → Variables:
+### Backend
+```bash
+cd backend
+npm run db:generate
+npm run db:push
+npm run start
+```
 
-| Переменная | Значение |
-|---|---|
-| `DATABASE_URL` | `${{MySQL.MYSQL_URL}}` (Variable Reference) |
-| `JWT_SECRET` | твой секретный ключ |
-| `JWT_REFRESH_SECRET` | другой секретный ключ |
-| `FRONTEND_URL` | https://твой-домен.vercel.app |
-| `NODE_ENV` | production |
-
-5. Railway автоматически выполнит: `prisma generate && prisma db push && node src/index.js`
-6. **БД заполнится сидом автоматически при первом запуске!**
-
-### Vercel (Frontend)
-
-1. Зайди на [vercel.com](https://vercel.com)
-2. New Project → Import from GitHub → выбери репо
-3. **Framework**: Next.js
-4. **Root Directory**: `frontend`
-5. Добавь Environment Variables:
-
-| Переменная | Значение |
-|---|---|
-| `NEXT_PUBLIC_API_URL` | https://твой-backend.railway.app |
-| `NEXT_PUBLIC_WS_URL` | https://твой-backend.railway.app |
-
-6. Deploy!
+### Frontend
+```bash
+cd frontend
+npm run build
+npm run start
+```
 
 ---
 
-## 🔐 Тестовые аккаунты
+## Тестовые аккаунты
 
-После первого запуска в БД создадутся:
+После первого запуска в БД создаются:
 
 | Email | Пароль | Роль |
 |---|---|---|
@@ -107,65 +134,36 @@ npm run dev
 
 ---
 
-## 📁 Структура проекта
+## Структура проекта
 
-```
+```text
 budaxov/
 ├── backend/
 │   ├── prisma/
-│   │   └── schema.prisma      # Схема БД (15 таблиц)
+│   │   └── schema.prisma
 │   ├── src/
-│   │   ├── index.js            # Точка входа + Socket.io
-│   │   ├── middleware/auth.js  # JWT middleware
-│   │   ├── routes/             # REST API роуты
-│   │   │   ├── auth.js
-│   │   │   ├── admin.js        # Вся админ-панель
-│   │   │   ├── posts.js        # Форум + лайки + комменты
-│   │   │   ├── items.js        # Вики предметы
-│   │   │   ├── wiki.js         # Вики страницы
-│   │   │   ├── news.js
-│   │   │   ├── leaderboard.js
-│   │   │   ├── achievements.js
-│   │   │   ├── gallery.js
-│   │   │   ├── users.js
-│   │   │   └── notifications.js
+│   │   ├── index.js
+│   │   ├── middleware/
+│   │   ├── routes/
 │   │   └── utils/
-│   │       ├── seed.js         # Автозаполнение БД
-│   │       └── logger.js
-│   └── railway.json            # Конфиг деплоя
-│
-└── frontend/
-    └── src/
-        ├── app/
-        │   ├── page.tsx         # Главная с parallax
-        │   ├── auth/            # Вход/регистрация
-        │   ├── wiki/            # Вики предметы
-        │   ├── forum/           # Форум
-        │   ├── news/            # Новости
-        │   ├── leaderboard/     # Рейтинг
-        │   ├── profile/         # Профиль
-        │   └── admin/           # Админ-панель
-        ├── components/
-        │   ├── Navbar.tsx       # Glassmorphism навбар
-        │   ├── Cards.tsx        # NewsCard, ItemCard, PostCard...
-        │   ├── ParticleCanvas.tsx # Пиксельные частицы
-        │   └── AuthProvider.tsx
-        └── lib/
-            ├── api.ts           # Axios + все API хелперы
-            └── store.ts         # Zustand auth store
+│   └── railway.json
+├── frontend/
+│   ├── src/
+│   │   ├── app/
+│   │   ├── components/
+│   │   ├── lib/
+│   │   └── styles/
+│   └── next.config.js
+├── scripts/
+│   └── start.js
+├── package.json
+└── railway.json
 ```
 
 ---
 
-## ✨ Фишки
+## Важно
 
-- 🎆 **Pixel particle system** — пиксельные частицы на фоне
-- 🌄 **Parallax hero** — многоуровневый параллакс с деревьями и горами
-- 🪟 **Glassmorphism navbar** — стекловидный навбар с blur
-- 💫 **Framer Motion** — все элементы анимированы при скролле
-- 🌙 **Тёмная тема** — только тёмная, по умолчанию
-- 🏅 **Достижения** — система ачивок с редкостью
-- 💬 **Socket.io** — онлайн-чат и счётчик игроков в реальном времени
-- 🎨 **Pixel font** — Press Start 2P для заголовков
-- 📊 **Admin panel** — полноценная с управлением юзерами, жалобами, галереей
-- 🔐 **JWT auth** — полная авторизация с refresh токенами
+- Vercel больше не нужен.
+- Один домен Railway обслуживает и сайт, и API.
+- Если меняешь домен Railway, обнови `FRONTEND_URL`.
