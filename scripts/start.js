@@ -56,7 +56,7 @@ async function main() {
       PORT: backendPort,
     });
 
-    const frontend = run('npm', ['--prefix', 'frontend', 'run', 'start', '--', '-p', publicPort]);
+    const frontend = run('npm', ['--prefix', 'frontend', 'run', 'start', '--', '-p', publicPort, '-H', '0.0.0.0']);
 
     const shutdown = (code = 0) => {
       backend.kill('SIGTERM');
