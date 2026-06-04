@@ -266,7 +266,7 @@ export default function HomePage() {
               <Link href="/news" className="hover:text-white transition-colors">Новости</Link>
               <Link href="/leaderboard" className="hover:text-white transition-colors">Рейтинг</Link>
             </div>
-            <p className="text-slate-500 text-sm">© 2024 Budaxov. Фан-сайт.</p>
+            <p className="text-slate-500 text-sm">© 2026 Budaxov. Фан-сайт.</p>
           </div>
         </div>
       </footer>
